@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Title tag removed -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+    header {
+      background: #0077b6;
+      color: white;
+      padding: 1rem;
+      font-size: 1.8rem;
+      text-align: center;
+      position: relative;
+      height: 3.5rem; /* Keep the space for the blue bar */
+    }
+    .map-container {
+      height: calc(100vh - 3.5rem);
+      width: 100%;
+    }
+    #currentLocationBtn {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      z-index: 999;
+      padding: 10px 15px;
+      background: #00b4d8;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .nav-buttons {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      z-index: 999;
+      display: flex;
+      gap: 10px;
+    }
+    .nav-buttons button {
+      padding: 10px 15px;
+      background: #90e0ef;
+      color: #03045e;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+      .map-container {
+        height: calc(100vh - 3.5rem);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <!-- Blue background kept, text removed -->
+</header>
+
+<button id="currentLocationBtn">My Location</button>
+
+<div class="nav-buttons">
+  <button onclick="goHome()">Home</button>
+  <button onclick="goBack()">Previous</button>
+</div>
+
+<div class="map-container" id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  const map = L.map('map').setView([22.9734, 78.6569], 5);
+
+  const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+
+  const terrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: 'Map data: &copy; OpenTopoMap contributors'
+  });
+
+  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri'
+  });
+
+  const baseMaps = {
+    "Streets": streets,
+    "Terrain": terrain,
+    "Satellite": satellite
+  };
+
+  streets.addTo(map);
+  L.control.layers(baseMaps).addTo(map);
+
+  function loadFlights() {
+    fetch("https://opensky-network.org/api/states/all")
+      .then(response => response.json())
+      .then(data => {
+        data.states.forEach(flight => {
+          if (flight[5] >= 68 && flight[5] <= 97 && flight[6] >= 6 && flight[6] <= 37) {
+            L.marker([flight[6], flight[5]]).addTo(map)
+              .bindPopup(`
+                <strong>Flight:</strong> ${flight[1] || 'N/A'}<br>
+                <strong>Speed:</strong> ${(flight[9] * 3.6).toFixed(2)} km/h<br>
+                <strong>Altitude:</strong> ${flight[7] ? flight[7].toFixed(2) : 'N/A'} ft<br>
+                <strong>Direction:</strong> ${flight[10] ? flight[10].toFixed(2) : 'N/A'}°
+              `);
+          }
+        });
+      });
+  }
+
+  loadFlights();
+  setInterval(loadFlights, 15000);
+
+  document.getElementById("currentLocationBtn").onclick = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(position => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        L.marker([lat, lon]).addTo(map).bindPopup("Your Location").openPopup();
+        map.setView([lat, lon], 8);
+      }, () => {
+        alert("Location access denied.");
+      });
+    } else {
+      alert("Geolocation not supported.");
+    }
+  };
+
+  function goHome() {
+    window.location.href = "homephone.html"; // Update this if needed
+  }
+
+  function goBack() {
+    window.history.back();
+  }
+</script>
+
+</body>
+</html>

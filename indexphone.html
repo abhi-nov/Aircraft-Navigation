@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Aircraft Navigation System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+    header {
+      background: #0077b6;
+      color: white;
+      padding: 1rem;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+    #datetime {
+      text-align: center;
+      font-size: 1rem;
+      margin-top: 5px;
+      color: #555;
+    }
+    .table-container {
+      width: 100%;
+      max-height: 75vh;
+      overflow-y: auto;
+      padding: 10px;
+      box-sizing: border-box;
+      background-color: #f1f1f1;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+      text-align: center;
+      padding: 8px;
+    }
+    th {
+      background: #0077b6;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    .buttons {
+      text-align: center;
+      margin: 15px 0;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: white;
+      color: #0077b6;
+      border: 2px solid #0077b6;
+      font-size: 1rem;
+      cursor: pointer;
+      margin: 5px;
+      transition: 0.3s ease;
+    }
+    button:hover {
+      background-color: #0077b6;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<header>Live Aircraft Navigation System</header>
+<div id="datetime"></div>
+
+<div class="table-container" id="pdfArea">
+  <input type="text" id="searchInput" placeholder="Search by State, Flight No, etc...">
+  <table id="flightTable">
+    <thead>
+      <tr>
+        <th>Flight Number</th>
+        <th>Speed (km/h)</th>
+        <th>Altitude (ft)</th>
+        <th>Direction (°)</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="buttons">
+  <button onclick="window.location.href='maps.html'">Display on Map</button>
+  <button onclick="window.location.href='homephone.html'">Home</button>
+</div>
+
+<script>
+  const stateBoundaries = [
+    { name: "Telangana", latMin: 15.5, latMax: 19.5, lonMin: 77, lonMax: 81 },
+    { name: "Andhra Pradesh", latMin: 12.5, latMax: 19.0, lonMin: 76.5, lonMax: 84.5 },
+    { name: "Maharashtra", latMin: 15.6, latMax: 22.1, lonMin: 72.6, lonMax: 80.9 },
+    { name: "Tamil Nadu", latMin: 8, latMax: 13.5, lonMin: 76, lonMax: 80 },
+    { name: "Karnataka", latMin: 11.5, latMax: 18, lonMin: 74, lonMax: 78.5 },
+    { name: "Kerala", latMin: 8, latMax: 12.8, lonMin: 74, lonMax: 78 },
+    { name: "Gujarat", latMin: 20, latMax: 24.7, lonMin: 68, lonMax: 74.5 },
+    { name: "Rajasthan", latMin: 23.3, latMax: 30.1, lonMin: 69, lonMax: 78 },
+    { name: "Punjab", latMin: 29.5, latMax: 32.5, lonMin: 73.8, lonMax: 76.8 },
+    { name: "Haryana", latMin: 27.5, latMax: 30.5, lonMin: 74.5, lonMax: 77.5 },
+    { name: "Madhya Pradesh", latMin: 21, latMax: 26.5, lonMin: 74, lonMax: 82 },
+    { name: "Uttar Pradesh", latMin: 23.5, latMax: 30.5, lonMin: 77, lonMax: 84.5 },
+    { name: "Bihar", latMin: 24, latMax: 27.5, lonMin: 83, lonMax: 88 },
+    { name: "West Bengal", latMin: 21.5, latMax: 27.2, lonMin: 85.8, lonMax: 89.8 },
+    { name: "Odisha", latMin: 18, latMax: 22.8, lonMin: 81.5, lonMax: 87 },
+    { name: "Chhattisgarh", latMin: 17.5, latMax: 24, lonMin: 80, lonMax: 85 },
+    { name: "Jharkhand", latMin: 22, latMax: 25.5, lonMin: 83, lonMax: 87 },
+    { name: "Assam", latMin: 24, latMax: 28.2, lonMin: 89.5, lonMax: 96 },
+    { name: "Goa", latMin: 14.9, latMax: 15.8, lonMin: 73.6, lonMax: 74.4 },
+    { name: "Delhi", latMin: 28.4, latMax: 28.9, lonMin: 76.8, lonMax: 77.4 },
+    { name: "Jammu and Kashmir", latMin: 32.2, latMax: 36, lonMin: 73, lonMax: 77 },
+    { name: "Ladakh", latMin: 32.5, latMax: 35.5, lonMin: 76, lonMax: 80 },
+    { name: "Himachal Pradesh", latMin: 30.5, latMax: 33.2, lonMin: 76, lonMax: 79 },
+    { name: "Uttarakhand", latMin: 28.7, latMax: 31.5, lonMin: 78, lonMax: 81 },
+    { name: "Sikkim", latMin: 27, latMax: 28, lonMin: 88, lonMax: 89 },
+    { name: "Nagaland", latMin: 25, latMax: 27, lonMin: 93, lonMax: 95 },
+    { name: "Manipur", latMin: 23.8, latMax: 25.8, lonMin: 93.5, lonMax: 94.8 },
+    { name: "Mizoram", latMin: 21.5, latMax: 24, lonMin: 92.3, lonMax: 93.5 },
+    { name: "Tripura", latMin: 22.5, latMax: 24.5, lonMin: 91, lonMax: 92.5 },
+    { name: "Meghalaya", latMin: 25, latMax: 26.5, lonMin: 89.5, lonMax: 92 },
+    { name: "Arunachal Pradesh", latMin: 26, latMax: 29.5, lonMin: 91.5, lonMax: 97.5 },
+    { name: "Puducherry", latMin: 11.5, latMax: 12.5, lonMin: 79, lonMax: 80 },
+    { name: "Andaman and Nicobar Islands", latMin: 6, latMax: 14, lonMin: 92, lonMax: 94 },
+    { name: "Lakshadweep", latMin: 8, latMax: 12.5, lonMin: 71, lonMax: 74 }
+  ];
+
+  function findState(lat, lon) {
+    for (const state of stateBoundaries) {
+      if (lat >= state.latMin && lat <= state.latMax && lon >= state.lonMin && lon <= state.lonMax) {
+        return state.name;
+      }
+    }
+    return "Unknown";
+  }
+
+  function loadFlights() {
+    fetch("https://opensky-network.org/api/states/all")
+      .then(response => response.json())
+      .then(data => {
+        const tableBody = document.querySelector("#flightTable tbody");
+        tableBody.innerHTML = "";
+        data.states.forEach(flight => {
+          const lon = flight[5], lat = flight[6];
+          if (lon >= 68 && lon <= 97 && lat >= 6 && lat <= 37) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${flight[1] || 'N/A'}</td>
+              <td>${flight[9] ? (flight[9] * 3.6).toFixed(2) : 'N/A'}</td>
+              <td>${flight[7] ? flight[7].toFixed(2) : 'N/A'}</td>
+              <td>${flight[10] ? flight[10].toFixed(2) : 'N/A'}</td>
+              <td>${lat}</td>
+              <td>${lon}</td>
+              <td>${findState(lat, lon)}</td>
+            `;
+            tableBody.appendChild(tr);
+          }
+        });
+      });
+  }
+
+  loadFlights();
+  setInterval(loadFlights, 15000);
+
+  document.getElementById("searchInput").addEventListener("input", function () {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll("#flightTable tbody tr");
+    rows.forEach(row => {
+      const match = Array.from(row.cells).some(cell =>
+        cell.textContent.toLowerCase().includes(filter)
+      );
+      row.style.display = match ? "" : "none";
+    });
+  });
+
+  function updateDateTime() {
+    const now = new Date();
+
+    // Formatting IST (Indian Standard Time) to the desired format (DD MMM YYYY)
+    const istOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    };
+    const ist = now.toLocaleString("en-IN", istOptions).replace(',', '').replace(/\//g, ' ');
+
+    // Formatting GMT (Greenwich Mean Time) to the desired format (DD MMM YYYY)
+    const gmtOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'UTC'
+    };
+    const gmt = now.toLocaleString("en-GB", gmtOptions).replace(',', '').replace(/\//g, ' ');
+
+    document.getElementById("datetime").innerHTML = `
+      <strong>IST:</strong> ${ist} &nbsp; | &nbsp; <strong>GMT:</strong> ${gmt}
+    `;
+  }
+  setInterval(updateDateTime, 1000);
+  updateDateTime();
+</script>
+
+</body>
+</html>
